@@ -1,6 +1,10 @@
-const { Bot, GrammyError, HttpError, InlineKeyboard } = require("grammy");
-const { hydrate } = require("@grammyjs/hydrate");
-require("dotenv").config();
+import { Bot, GrammyError, HttpError, InlineKeyboard } from "grammy";
+import { hydrate } from "@grammyjs/hydrate";
+import dotenv from "dotenv";
+
+import { loadUsers, saveUsers } from "./utils/userStorage.js";
+
+dotenv.config();
 
 // Создание бота
 const bot = new Bot(process.env.BOT_API_KEY);
@@ -8,11 +12,17 @@ const bot = new Bot(process.env.BOT_API_KEY);
 // Использование плагинов
 bot.use(hydrate());
 
+let users = loadUsers();
+
 // Список команд
 bot.api.setMyCommands([
   {
     command: "start",
     description: "Запуск бота",
+  },
+  {
+    command: "registr",
+    description: "Создание профиля",
   },
   {
     command: "translator",
@@ -23,8 +33,6 @@ bot.api.setMyCommands([
     description: "Открыть словарь",
   },
 ]);
-
-const users = {};
 
 // Создание клавиатур
 const level = new InlineKeyboard()
@@ -43,9 +51,19 @@ const start = new InlineKeyboard()
 // Создание команд
 bot.command("start", async (ctx) => {
   await ctx.reply(
-    `Привет Я - English Buddy! 
-Давай создадим твой профиль. Введи своё имя:`
+    `Привет Я - English Buddy!
+Для того, чтобы создать профиль, введите команду /registr`
   );
+});
+
+bot.command("registr", async (ctx) => {
+  const userId = ctx.from.id;
+  if (users[userId]) {
+    await ctx.reply(`Вы уже зарегистрированы как ${users[userId].name}`);
+  } else {
+    await ctx.reply(`Давайте создадим профиль!
+Введите ваше имя:`);
+  }
 });
 
 bot.command("translator", async (ctx) => {
@@ -61,10 +79,11 @@ bot.on("message:text", async (ctx) => {
 
   // Если пользователь еще не зарегистрирован
   if (!users[userId]) {
-    users[userId] = { name: ctx.message.text };
+    users[userId] = { name: ctx.message.text, level: null };
+    saveUsers(users);
     await ctx.reply(
       `Отлично, ${ctx.message.text}! 
-Теперь выбери уровень знания языка:`,
+Теперь выберите уровень знания языка:`,
       {
         reply_markup: level,
       }
@@ -75,33 +94,41 @@ bot.on("message:text", async (ctx) => {
 // Обработка нажатий кнопок
 bot.callbackQuery("level_start", async (ctx) => {
   const userId = ctx.from.id;
-  users[userId].level = "Начальный";
-  await ctx.reply(
-    `Профиль создан! 
+  if (!users[userId].level) {
+    users[userId].level = "Начальный";
+    saveUsers(users);
+    await ctx.reply(
+      `Профиль создан! 
 Имя: <b>${users[userId].name}</b>
 Уровень: <b>${users[userId].level}</b>
-Теперь выбери формат занятия:`,
-    {
-      reply_markup: start,
-      parse_mode: "HTML",
-    }
-  );
+Теперь выберите формат занятия:`,
+      {
+        reply_markup: start,
+        parse_mode: "HTML",
+      }
+    );
+  }
   await ctx.answerCallbackQuery();
 });
 
 bot.callbackQuery("level_intermidiate", async (ctx) => {
   const userId = ctx.from.id;
-  users[userId].level = "Средний";
-  await ctx.reply(
-    `Профиль создан! 
+  if (!users[userId].level) {
+    users[userId].level = "Средний";
+    saveUsers(users);
+    await ctx.reply(
+      `Профиль создан! 
 Имя: <b>${users[userId].name}</b> 
 Уровень: <b>${users[userId].level}</b>
-Теперь выбери формат занятия:`,
-    {
-      reply_markup: start,
-      parse_mode: "HTML",
-    }
-  );
+Теперь выберите формат занятия:
+(Это пока весь функционал
+Спасибо за помощь! Чаще улыбайся - тебе идёт)`,
+      {
+        reply_markup: start,
+        parse_mode: "HTML",
+      }
+    );
+  }
   await ctx.answerCallbackQuery();
 });
 
