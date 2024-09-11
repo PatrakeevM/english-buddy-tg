@@ -5,6 +5,7 @@
   "scripts": {
     "start": "nodemon bot.js"
   },
+  "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
